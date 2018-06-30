@@ -2,10 +2,12 @@
   (:require [mongodb-async.databases-and-collections :refer [callback-when-finished
                                                              connect
                                                              get-db
-                                                             get-collection]])
+                                                             get-collection]]
+            [mongodb-async.read-operations :refer [eq]])
   (:import [com.mongodb Block ReadPreference ReadConcern WriteConcern]
            [org.bson.conversions Bson]
            [org.bson Document]
+           [org.bson.types ObjectId]
            [com.mongodb.connection ClusterSettings]
            [com.mongodb.async SingleResultCallback]
            [com.mongodb.async.client
@@ -14,7 +16,9 @@
             MongoCollection
             FindIterable
             MongoClientSettings]
-           [com.mongodb.client.model Filters Projections Sorts]))
+           [com.mongodb.client.model Filters Projections Sorts UpdateOptions]
+           [com.mongodb.client.model Updates]
+           [com.mongodb.client.result UpdateResult]))
 
 (def single-result-callback
   (proxy [SingleResultCallback] []
@@ -54,6 +58,43 @@
 
 ;; Update Existing Documents
 
+(defn update-one [^MongoCollection coll]
+  (.updateOne coll
+              (eq "_id" (ObjectId. "57506d62f57802807471dd41"))
+              (Updates/combine
+               (into-array Bson
+                           [(Updates/set "stars" 1)
+                            (Updates/set "contact.phone" "228-555-9999")
+                            (Updates/currentDate "lastModified")]))
+              (proxy [SingleResultCallback] []
+                (onResult [result t]
+                  (println (.getModifiedCount result))))))
+
+(defn update-many [^MongoCollection coll]
+  (.updateOne coll
+              (eq "stars" 2)
+              (Updates/combine
+               (into-array Bson
+                           [(Updates/set "stars" 0)
+                            (Updates/currentDate "lastModified")]))
+              (proxy [SingleResultCallback] []
+                (onResult [result t]
+                  (println (.getModifiedCount result))))))
+
+#_(defn update-one [^MongoCollection coll]
+    (.updateOne coll
+                (eq "_id" (ObjectId. "57506d62f57802807471dd41"))
+                (Updates/combine
+                 (into-array Bson
+                             [(Updates/set "stars" 1)
+                              (Updates/set "contact.phone" "228-555-9999")
+                              (Updates/currentDate "lastModified")]))
+                (-> (UpdateOptions.)
+                    (upsert true)
+                    (bypassDocumentValidation true))
+                (proxy [SingleResultCallback] []
+                  (onResult [result t]
+                    (println (.getModifiedCount result))))))
 
 ;; Replace an Existing Document
 
