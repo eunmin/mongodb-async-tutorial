@@ -18,7 +18,7 @@
             MongoClientSettings]
            [com.mongodb.client.model Filters Projections Sorts UpdateOptions]
            [com.mongodb.client.model Updates]
-           [com.mongodb.client.result UpdateResult]))
+           [com.mongodb.client.result UpdateResult DeleteResult]))
 
 (def single-result-callback
   (proxy [SingleResultCallback] []
@@ -67,36 +67,77 @@
                             (Updates/set "contact.phone" "228-555-9999")
                             (Updates/currentDate "lastModified")]))
               (proxy [SingleResultCallback] []
-                (onResult [result t]
+                (onResult [^UpdateResult result t]
                   (println (.getModifiedCount result))))))
 
 (defn update-many [^MongoCollection coll]
+  (.updateMany coll
+               (eq "stars" 2)
+               (Updates/combine
+                (into-array Bson
+                            [(Updates/set "stars" 0)
+                             (Updates/currentDate "lastModified")]))
+               (proxy [SingleResultCallback] []
+                 (onResult [^UpdateResult result t]
+                   (println (.getModifiedCount result))))))
+
+(defn update-one-with-update-options [^MongoCollection coll]
   (.updateOne coll
-              (eq "stars" 2)
+              (eq "_id" (ObjectId. "57506d62f57802807471dd41"))
               (Updates/combine
                (into-array Bson
-                           [(Updates/set "stars" 0)
+                           [(Updates/set "stars" 1)
+                            (Updates/set "contact.phone" "228-555-9999")
                             (Updates/currentDate "lastModified")]))
+              (-> (UpdateOptions.)
+                  (.upsert true)
+                  (.bypassDocumentValidation true))
               (proxy [SingleResultCallback] []
-                (onResult [result t]
+                (onResult [^UpdateResult result t]
                   (println (.getModifiedCount result))))))
-
-#_(defn update-one [^MongoCollection coll]
-    (.updateOne coll
-                (eq "_id" (ObjectId. "57506d62f57802807471dd41"))
-                (Updates/combine
-                 (into-array Bson
-                             [(Updates/set "stars" 1)
-                              (Updates/set "contact.phone" "228-555-9999")
-                              (Updates/currentDate "lastModified")]))
-                (-> (UpdateOptions.)
-                    (upsert true)
-                    (bypassDocumentValidation true))
-                (proxy [SingleResultCallback] []
-                  (onResult [result t]
-                    (println (.getModifiedCount result))))))
 
 ;; Replace an Existing Document
 
+(defn replace-one [^MongoCollection coll]
+  (.replaceOne coll
+               (eq "_id" (ObjectId. "57506d62f57802807471dd41"))
+               (-> (Document. "name" "Green Salads Buffet")
+                   (.append "contact" "TBD")
+                   (.append "categories" ["Salads" "Health Foods" "Buffet"]))
+               (proxy [SingleResultCallback] []
+                 (onResult [^UpdateResult result t]
+                   (println (.getModifiedCount result))))))
+
+(defn replace-one-with-update-options [^MongoCollection coll]
+  (.replaceOne coll
+               (eq "_id" (ObjectId. "57506d62f57802807471dd41"))
+               (-> (Document. "name" "Green Salads Buffet")
+                   (.append "contact" "TBD")
+                   (.append "categories" ["Salads" "Health Foods" "Buffet"]))
+               (-> (UpdateOptions.)
+                   (.upsert true)
+                   (.bypassDocumentValidation true))
+               (proxy [SingleResultCallback] []
+                 (onResult [^UpdateResult result t]
+                   (println (.getModifiedCount result))))))
 
 ;; Delete Documents
+
+(defn delete-one [^MongoCollection coll]
+  (.deleteOne coll
+              (eq "_id" (ObjectId. "57506d62f57802807471dd41"))
+              (proxy [SingleResultCallback] []
+                (onResult [^DeleteResult result t]
+                  (println (.getDeleteCount result))))))
+
+(defn delete-many [^MongoCollection coll]
+  (.deleteMany coll
+               (eq "start" 4)
+               (proxy [SingleResultCallback] []
+                 (onResult [^DeleteResult result t]
+                   (println (.getDeleteCount result))))))
+
+;; Write Concern
+
+(defn with-write-concern [^MongoCollection coll ^WriteConcern write-concern]
+  (.withWriteConcern coll write-concern))
